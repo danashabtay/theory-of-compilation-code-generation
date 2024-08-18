@@ -11,6 +11,7 @@
 extern int yylineno;
 extern symTableStack stacks;
 
+
 class Node
 {
 
@@ -54,6 +55,7 @@ class Exp : public Node
 public:
     std::string type;
     std::string val;
+    std::string reg = "";
 
     // Methods:
     Exp(const Exp *other);
@@ -73,7 +75,7 @@ class Call : public Node
 {
 public:
     std::string returnType;
-
+    std::string reg = "";
     Call(const Node *node, const Exp *exp);
     virtual ~Call() = default;
 };

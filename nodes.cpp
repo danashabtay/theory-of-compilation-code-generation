@@ -3,6 +3,7 @@
 
 
 using namespace std;
+extern codeGen generator;
 
 
 static bool check_types_compatible(string type1, string type2)
