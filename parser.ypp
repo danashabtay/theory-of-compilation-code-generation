@@ -8,6 +8,8 @@ using namespace output;
 using namespace std;
 void yyerror(const char *s);
 extern int yylineno;
+extern globalCode buffer;
+extern CodeGen code_gen;
 extern symTableStack stacks;
 %}
 
@@ -77,8 +79,8 @@ Type : INT { $$ = new Type("int"); }
 ;
 
 Exp : LPAREN Exp RPAREN { $$ = new Exp(dynamic_cast<Exp*>($2));}
-    | Exp MULT_AND_DIV Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "arithmetic");}
-    | Exp ADD_AND_SUB Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "arithmetic");}
+    | Exp MULT_AND_DIV Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "arithmetic",$2->val);}
+    | Exp ADD_AND_SUB Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "arithmetic",$2->val);}
     | ID { $$ = new Exp($1);}
     | Call { $$ = new Exp(dynamic_cast<Call*>($1)); }
     | NUM { $$ = new Exp("int"); }
@@ -87,10 +89,10 @@ Exp : LPAREN Exp RPAREN { $$ = new Exp(dynamic_cast<Exp*>($2));}
     | TRUE { $$ = new Exp("bool"); }
     | FALSE { $$ = new Exp("bool"); }
     | NOT Exp { $$ = new Exp(dynamic_cast<Exp*>($2), "logic"); }
-    | Exp AND Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "logic"); }
-    | Exp OR Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "logic"); }
-    | Exp EQUALITY Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "relop"); }
-    | Exp RELATIONAL Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "relop"); }
+    | Exp AND Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "logic",$2->val); }
+    | Exp OR Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "logic",$2->val); }
+    | Exp EQUALITY Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "relop",$2->val); }
+    | Exp RELATIONAL Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "relop",$2->val); }
     | LPAREN Type RPAREN Exp { $$ = new Exp(dynamic_cast<Exp*>($4), dynamic_cast<Type*>($2)); }
     ;
 
@@ -102,9 +104,23 @@ IsBool: Exp                                                      {check_bool($1)
 /* C code section */
 
 symTableStack stacks = symTableStack();
+codeGen code_gen = codeGen();
+CodeBuffer buffer = CodeBuffer();
 
 int main() {
-    return yyparse();
+    buffer.firstemits();
+    buffer.emit("define i32 @main(){");
+    stacks.rbp = Code_gen.allocateReg(0);
+    buffer.emit(stacks.rbp + " = alloca i32, i32 50");
+    //-----more emits------------------------------------//
+    int parser = yyparse();
+    stacks.cleanUp();
+    buffer.emit("ret i32 0");
+    buffer.emit("}");
+    //-----printing global defs and then the buffer------// 
+    buffer.printGlobalBuffer();
+    buffer.printCodeBuffer();
+    return parser;
 }
 
 void yyerror(const char *s) {

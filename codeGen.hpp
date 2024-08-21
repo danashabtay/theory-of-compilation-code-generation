@@ -5,16 +5,20 @@
 #include "nodes.hpp"
 #include "cg.hpp"
 
+using namespace std;
+
 
 class codeGenerator{
     int maxNumReg;
 
 public:
     codeGenerator():maxNumReg(0){}
-    std::string allocate_register();
-    std::string allocateGlobalReg();
-    void arithmeticCode(Exp* exp, const Exp& op1, const Exp& op2,const string& operation);
-
+    string allocateReg(bool global)();
+    string relopGetter(const string &operation);
+    string binopGetter(const string &operation);
+    void globalCode();
+    void binopCode(Exp *exp, const Exp &op1, const Exp &op2, const string &op);
+    void relopCode(Exp *exp, const Exp *op1, const Exp *op2, const string &op);
 
 }
 

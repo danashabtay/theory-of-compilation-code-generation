@@ -3,11 +3,14 @@
 
 #include "symTable.hpp"
 #include "hw3_output.hpp"
+#include "codeGen.hpp"
+#include "cg.hpp"
 #include <string>
 #include <vector>
 #include <iostream>
 
-
+extern codeBuffer buffer;
+extern codeGen code_gen;
 extern int yylineno;
 extern symTableStack stacks;
 
@@ -64,7 +67,7 @@ public:
     Exp(std::string type);
     Exp(std::string type, const Node *node);
     Exp(const Exp *operand, std::string opType);
-    Exp(const Exp *operand1, const Exp *operand2, std::string opType);
+    Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::string op);
     Exp(const Exp *operand, const Type *type);
     virtual ~Exp() = default;
     bool isNumExp() const;

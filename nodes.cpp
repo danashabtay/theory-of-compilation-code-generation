@@ -3,7 +3,7 @@
 
 
 using namespace std;
-extern codeGen generator;
+extern codeGen code_gen;
 
 
 static bool check_types_compatible(string type1, string type2)
@@ -278,17 +278,32 @@ Exp::Exp(const Exp *operand, std::string opType)
 }
 
 // EXP -> EXP OP EXP
-Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType)
+Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::string op)
 {
+    //dynamic cast to exp?
+
     if (operand1 && operand2)
     {
 
         if (opType == "logic")
         {
-            if (operand1->type == operand2->type && operand2->type == "bool")
+            if(!(operand1->type == operand2->type && operand2->type == "bool"))
             {
-                this->type = "bool";
-                return;
+            output::errorMismatch(yylineno);
+            exit(0);
+            }
+            this->type = "bool";
+            true_label = buffer.freshLabel();
+            false_label = buffer.freshLabel();
+            next_label = buffer.freshLabel();
+            if(op == "and")
+            {
+                buffer.emit(reg + " = and i1 " + operand1->reg + ", " + operand2->reg);
+            }
+            else if(op == "or")
+            {
+                buffer.emit(reg + " = or i1 " + operand1->reg + ", " + operand2->reg);
+
             }
         }
         else if (opType == "relop")
@@ -296,27 +311,92 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType)
             if (operand1->isNumExp() && operand2->isNumExp())
             {
                 this->type = "bool";
-                return;
+                string fresh_reg1 = codeGenerator.freshVar();
+                string fresh_reg2 = codeGenerator.freshVar();
+                if(operand1->type == "int")
+                {
+                    buffer.emit(fresh_reg1 +" = add i32 " + operand1->reg + ", 0");
+                }
+                else if(operand1->type == "byte")
+                {
+                    buffer.emit(fresh_reg1 + " = zext i8 " + operand1->reg + " to i32");
+                }
+
+                if(operand2->type == "int")
+                {
+                    buffer.emit(fresh_reg2 +" = add i32 " + operand2->reg + ", 0");
+                }
+                else if(operand2->type == "byte")
+                {
+                    buffer.emit(fresh_reg2 + " = zext i8 " + operand2->reg + " to i32");
+                }
+
+                string op_text = code_gen.relopGetter(op);
+                buffer.emit(reg + "= icmp " + op_text + " i32 " + fresh_reg1 + ", " + fresh_reg2);
             }
-            else if (operand1->type != operand2->type) //is needed?
-            { 
-                output::errorMismatch(yylineno);
-                exit(0);
-            }
+            output::errorMismatch(yylineno);
+            exit(0);
         }
         else if (opType == "arithmetic")
         {
+            //handling an unrelated type 
+            if((operand1->type != "int" && operand1->type != "byte")||(operand2->type != "int" && operand2->type != "byte"))
+            {
+            output::errorMismatch(yylineno);
+            exit(0);
+            }
+            
             if (operand1->isNumExp() && operand2->isNumExp())
             {
                 if (operand1->type == "int" || operand2->type == "int")
                 {
                     this->type = "int";
+                    string fresh_reg1 = code_gen.allocateReg();
+                    string fresh_reg2 = code_gen.allocateReg();
+                    if(operand1->type == "int")
+                    {
+                        buffer.emit(fresh_reg1 +" = add i32 " + operand1->reg + ", 0");
+                    }
+                    else if(operand1->type == "byte")
+                    {   
+                        buffer.emit(fresh_reg1 + " = zext i8 " + operand1->reg + " to i32");
+                    }
+                    if(operand2->type == "int")
+                    {
+                        buffer.emit(fresh_reg2 +" = add i32 " + operand2->reg + ", 0");
+                    }
+                    else if(operand2->type == "byte")
+                    {
+                        buffer.emit(fresh_reg2 + " = zext i8 " + operand2->reg + " to i32");
+                    }
+
+                    string text_op = binopGetter(op);
+                    if(text_op == "div")
+                    {
+                        buffer.emit("call void @check_division(i32 " + fresh_reg2 + ")");
+                        buffer.emit(reg + " = sdiv i32 " + fresh_reg1 + ", " + fresh_reg2);
+                    }
+                    else
+                    {
+                        buffer.emit(reg + " = " + text_op + " i32 " + fresh_reg1 + ", " + fresh_reg2);
+                    }
                 }
                 else
                 {
                     this->type = "byte";
+                    string text_op = binopGetter(op);
+                    if(text_op == "div")
+                    {
+                        string old_reg = code_gen.freshVar();
+                        buffer.emit(old_reg + " = zext i8 " + operand2->reg + "to i32");
+                        buffer.emit("call void @check_division(i32 " + old_reg + ")");
+                        buffer.emit(reg + " = udiv i8 " + operand1->reg + ", " + operand2->reg);
+                    }
+                    else
+                    {
+                        buffer.emit(reg + " = " + text_op + " i8 " + operand1->reg + ", " + operand2->reg);
+                    }
                 }
-                return;
             }
         }
     }

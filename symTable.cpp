@@ -83,7 +83,7 @@ void symTableStack::removeTable()
     symTable *curr_table = tableStack.back();
     output::endScope();
 
-    // printing symbols:
+    /* printing symbols:
     for (auto it = (*curr_table).symbolsTable.begin(); it != (*curr_table).symbolsTable.end(); it++)
     {
         if ((*it)->isFunc)
@@ -95,6 +95,7 @@ void symTableStack::removeTable()
             output::printID((*it)->name, (*it)->offset, toUpperCase((*it)->type));
         }
     }
+    */
     tableStack.pop_back();
     offsetStack.pop_back();
     delete curr_table;
@@ -158,4 +159,11 @@ symTable *symTableStack::getCurrSymTable()
 
 void symTableStack::printScope()
 {
+}
+
+void symTableStack::cleanUp(){
+    while(!tableStack.empty())
+    {
+        tableStack.removeTable();
+    }
 }

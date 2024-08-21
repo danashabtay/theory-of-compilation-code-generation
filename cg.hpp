@@ -33,6 +33,10 @@ public:
 	//print the content of the global buffer to stdout
 	void printGlobalBuffer();
 
+	// ******** Additional Methods ******** //
+
+	void functionsDec();
+	void printDef();
 };
 
 #endif
