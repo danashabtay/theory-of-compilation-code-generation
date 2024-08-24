@@ -102,23 +102,23 @@ void codeGenerator::globalCode() {
 
 //---------------------Helper Emits-----------------------//
 
-void CodeGenerator::emitBranchCondition(const std::string& conditionReg, const std::string& trueLabel, const std::string& falseLabel) {
+void codeGenerator::emitBranchCondition(const std::string& conditionReg, const std::string& trueLabel, const std::string& falseLabel) {
     buffer.emit("br i1 " + conditionReg + ", label %" + trueLabel + ", label %" + falseLabel);
 }
 
-void CodeGenerator::emitLabel(const std::string& label) {
+void codeGenerator::emitLabel(const std::string& label) {
     buffer.emit(label + ":");
 }
 
-void CodeGenerator::emitUnconditionalBranch(const std::string& label) {
+void codeGenerator::emitUnconditionalBranch(const std::string& label) {
     buffer.emit("br label %" + label);
 }
 
-void CodeGenerator::emitPhiInstruction(const std::string& resultReg, const std::string& type, const std::string& trueValue, const std::string& trueLabel, const std::string& falseValue, const std::string& falseLabel) {
+void codeGenerator::emitPhiInstruction(const std::string& resultReg, const std::string& type, const std::string& trueValue, const std::string& trueLabel, const std::string& falseValue, const std::string& falseLabel) {
     buffer.emit(resultReg + " = phi " + type + " [" + trueValue + ", %" + trueLabel + "], [" + falseValue + ", %" + falseLabel + "]");
 }
 
-void CodeGenerator::emitPhiNodeForExp(const std::string& reg, const std::string& trueLabel, const std::string& falseLabel, const std::string& nextLabel) {
+void codeGenerator::emitPhiNodeForExp(const std::string& reg, const std::string& trueLabel, const std::string& falseLabel, const std::string& nextLabel) {
     emitPhiInstruction(reg, "i1", "1", trueLabel, "0", falseLabel);
     emitUnconditionalBranch(nextLabel);
     emitLabel(nextLabel);
