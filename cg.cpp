@@ -1,11 +1,14 @@
-#include "cg.hpp"
+
 #include <vector>
 #include <iostream>
 #include <sstream>
-#include "codeGen.hpp"
-using namespace std;
 
-extern CodeGen Code_gen;
+#include "cg.hpp"
+#include "codeGen.hpp"
+
+extern codeGenerator code_gen;
+
+using namespace std;
 
 CodeBuffer::CodeBuffer() : buffer(), globalDefs() {}
 

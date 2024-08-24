@@ -7,13 +7,14 @@
 using namespace std;
 
 class CodeBuffer{
+public:
+
 	CodeBuffer();
 	CodeBuffer(CodeBuffer const&);
     void operator=(CodeBuffer const&);
 	std::vector<std::string> buffer;
 	std::vector<std::string> globalDefs;
 	int labels_num = 1;
-public:
 	static CodeBuffer &instance();
 
 	// ******** Methods to handle the code section ******** //

@@ -1,24 +1,19 @@
 #ifndef _236360_3_NODES_H
 #define _236360_3_NODES_H
 
-#include "symTable.hpp"
-#include "hw3_output.hpp"
-#include "codeGen.hpp"
-#include "cg.hpp"
+
 #include <string>
 #include <vector>
 #include <iostream>
 
-extern codeBuffer buffer;
-extern codeGen code_gen;
-extern int yylineno;
-extern symTableStack stacks;
+
 
 
 class Node
 {
 
 public:
+    string reg = "";
     std::string val;
 
     Node(const std::string value = "");
@@ -59,8 +54,13 @@ public:
     std::string type;
     std::string val;
     std::string reg = "";
+    bool isVar;
+    std::string true_label = "";
+    std::string false_label = "";
+    std::string next_label = "";
 
     // Methods:
+    Exp::Exp();
     Exp(const Exp *other);
     Exp(const Node *id);
     Exp(const Call *call);
@@ -101,6 +101,26 @@ public:
     Statements(Statement *statement) : Node() {};
     Statements(Statements *statements, Statement *statement) : Node() {};
     virtual ~Statements() = default;
+};
+
+
+class Label: public Node{
+public:
+    std::string true_label;
+    std::string false_label;
+    std::string next_label;
+
+    Label();
+    virtual ~Label() = default;
+};
+
+class ifClass: public Exp{
+public:
+    Exp* exp;
+    Label* label;
+    
+    ifClass(Exp* exp, Label* label);
+    virtual ~ifClass() = default;
 };
 
 

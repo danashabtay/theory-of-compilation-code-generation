@@ -83,21 +83,44 @@ Exp : LPAREN Exp RPAREN { $$ = new Exp(dynamic_cast<Exp*>($2));}
     | Exp ADD_AND_SUB Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "arithmetic",$2->val);}
     | ID { $$ = new Exp($1);}
     | Call { $$ = new Exp(dynamic_cast<Call*>($1)); }
-    | NUM { $$ = new Exp("int"); }
+    | NUM { $$ = new Exp("int", $1); }
     | NUM B { $$ = new Exp("byte", $1); }
-    | STRING { $$ = new Exp("string"); }
-    | TRUE { $$ = new Exp("bool"); }
-    | FALSE { $$ = new Exp("bool"); }
+    | STRING { $$ = new Exp("string", $1); }
+    | TRUE { $$ = new Exp("bool", $1); }
+    | FALSE { $$ = new Exp("bool", $1); }
     | NOT Exp { $$ = new Exp(dynamic_cast<Exp*>($2), "logic"); }
-    | Exp AND Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "logic",$2->val); }
-    | Exp OR Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "logic",$2->val); }
+    | Exp AND Lable 
+    { code_gen.emitBranchCondition(dynamic_cast<Exp*>($1)->reg, dynamic_cast<Label*>($3)->true_label, dynamic_cast<Label*>($3)->false_label);
+    code_gen.emitLabel(dynamic_cast<Label*>($3)->true_label); } 
+    Exp 
+    { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "logic",$2->val); 
+    code_gen.emitBranchCondition(dynamic_cast<Exp*>($5)->reg, dynamic_cast<Label*>($3)->true_label2, dynamic_cast<Label*>($3)->false_label);
+    code_gen.emitLabel(dynamic_cast<Label*>($3)->true_label2);
+    code_gen.emitUnconditionalBranch(dynamic_cast<Label*>($3)->next_label);
+    code_gen.emitLabel(dynamic_cast<Label*>($3)->false_label);
+    code_gen.emitUnconditionalBranch(dynamic_cast<Label*>($3)->next_label);
+    code_gen.emitLabel(dynamic_cast<Label*>($3)->next_label);
+    code_gen.emitPhiNodeForExp(dynamic_cast<Exp*>($$), dynamic_cast<Label*>($3)->true_label2, dynamic_cast<Label*>($3)->false_label, dynamic_cast<Label*>($3)->next_label); }
+    | Exp OR LABLE 
+    { code_gen.emitBranchCondition(dynamic_cast<Exp*>($1)->reg, dynamic_cast<Label*>($3)->true_label, dynamic_cast<Label*>($3)->false_label);
+    code_gen.emitLabel(dynamic_cast<Label*>($3)->false_label); } 
+    Exp 
+    { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "logic",$2->val); 
+    code_gen.emitBranchCondition(dynamic_cast<Exp*>($5)->reg, dynamic_cast<Label*>($3)->true_label, dynamic_cast<Label*>($3)->false_label2);
+    code_gen.emitLabel(dynamic_cast<Label*>($3)->false_label2);
+    code_gen.emitUnconditionalBranch(dynamic_cast<Label*>($3)->next_label);
+    code_gen.emitLabel(dynamic_cast<Label*>($3)->true_label);
+    code_gen.emitUnconditionalBranch(dynamic_cast<Label*>($3)->next_label);
+    code_gen.emitLabel(dynamic_cast<Label*>($3)->next_label); 
+    code_gen.emitPhiNodeForExp(code_gen.allocateReg(0), dynamic_cast<Label*>($3)->true_label, dynamic_cast<Label*>($3)->false_label2, dynamic_cast<Label*>($3)->next_label); }
     | Exp EQUALITY Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "relop",$2->val); }
     | Exp RELATIONAL Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "relop",$2->val); }
     | LPAREN Type RPAREN Exp { $$ = new Exp(dynamic_cast<Exp*>($4), dynamic_cast<Type*>($2)); }
-    ;
+;
 
 OS:                                                              {stacks.addTable(false);}
 IsBool: Exp                                                      {check_bool($1);}
+Label:                                                           {$$ = new Label();}
 
 %%
 

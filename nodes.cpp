@@ -1,10 +1,15 @@
 #include "nodes.hpp"
-
-
+#include "symTable.hpp"
+#include "hw3_output.hpp"
+#include "codeGen.hpp"
+#include "cg.hpp"
 
 using namespace std;
-extern codeGen code_gen;
 
+extern CodeBuffer buffer;
+extern codeGenerator code_gen;
+extern int yylineno;
+extern symTableStack stacks;
 
 static bool check_types_compatible(string type1, string type2)
 {
@@ -184,17 +189,45 @@ Call::Call(const Node *node, const Exp *exp)
     if (!(symbol->params == exp->type) && !(symbol->params == "int" && exp->type == "byte"))
     {
         std::string toPrint;
-        if (symbol->params == "string") toPrint = "STRING";
-        else if(symbol->params == "int") toPrint = "INT";
-        else if(symbol->params == "bool") toPrint = "BOOL";
-        else if(symbol->params == "byte") toPrint = "BYTE";
+        if (symbol->params == "string")
+            toPrint = "STRING";
+        else if (symbol->params == "int")
+            toPrint = "INT";
+        else if (symbol->params == "bool")
+            toPrint = "BOOL";
+        else if (symbol->params == "byte")
+            toPrint = "BYTE";
         output::errorPrototypeMismatch(yylineno, name, toPrint);
         exit(0);
     }
 
     // we found the right function!
+    reg = code_gen.allocateReg(0);
     this->val = name;
     this->returnType = symbol->type;
+
+    if (returnType == "void" && (exp->type == "int" || exp->type == "byte") && val == "printi")
+    {
+        string new_reg = code_gen.allocateReg(0);
+        if (exp->type == "byte")
+        {
+            buffer.emit(new_reg + " = zext i8 " + exp->reg + " to i32");
+        }
+        else
+        {
+            buffer.emit(new_reg + " = add i32 " + exp->reg + ", 0");
+        }
+        buffer.emit("call void @" + val + "(i32 " + new_reg + ")");
+    }
+    else if (returnType == "int" && exp->type == "int" && val == "readi")
+    {
+        buffer.emit(reg + " = call i32 @" + val + "(i32 " + exp->reg + ")");
+    }
+    else if (returnType == "void" && exp->type == "string" && val == "print")
+    {
+        buffer.emit("call void @" + val + "(i8* " + exp->reg + ")");
+    }
+    
 }
 
 // Type:
@@ -213,10 +246,35 @@ bool Type::isNum() const
 
 // Exp:
 
-// Exp -> LPAREN Exp RPAREN
-Exp::Exp(const Exp *other) : Node(other->val), type(other->type) {}
+//defalut constructor:
+Exp::Exp(): Node(), type("void"), isVar(false)
+{
+    reg = code_gen.allocateReg(0);
+}
 
-// EXP -> ID / CALL
+// Exp -> LPAREN Exp RPAREN
+Exp::Exp(const Exp *other) : Node(other->val), type(other->type)
+{
+    reg = code_gen.allocateReg(false);
+    if (type == "int")
+    {
+        buffer.emit(reg + " = add i32 " + other->reg + ", 0");
+    }
+    else if (type == "bool")
+    {
+        buffer.emit(reg + " = add i1 " + other->reg + ", 0");
+    }
+    else if (type == "string")
+    {
+        buffer.emit(reg + " = add i8* " + other->reg + ", 0");
+    }
+    else if (type == "byte")
+    {
+        buffer.emit(reg + " = add i8 " + other->reg + ", 0");
+    }
+}
+
+// EXP -> ID
 Exp::Exp(const Node *id) : Node()
 {
     if (id)
@@ -229,6 +287,29 @@ Exp::Exp(const Node *id) : Node()
         symTableEntry *symbol = stacks.getSymbol(id->val);
         this->val = id->val;
         this->type = symbol->type;
+        if (reg == "")
+        {
+            reg = code_gen.allocateReg(0);
+        }
+        string reg_ptr = code_gen.allocateReg(0);
+        buffer.emit(reg_ptr + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
+        buffer.emit(reg + " = load i32, i32* " + reg_ptr);
+        if (symbol->type == "bool")
+        {
+            string register_c = code_gen.allocateReg(0);
+            string reg_new = code_gen.allocateReg(0);
+            buffer.emit(register_c + " = add i32 " + reg + ", 0");
+            buffer.emit(reg_new + " = icmp ne i32 " + register_c + ", 0");
+            reg = reg_new;
+        }
+        else if (symbol->type == "byte")
+        {
+            string register_c = code_gen.allocateReg(0);
+            string reg_new = code_gen.allocateReg(0);
+            buffer.emit(register_c + " = add i32 " + reg + ", 0");
+            buffer.emit(reg_new + " = trunc i32 " + register_c + " to i8");
+            reg = reg_new;
+        }
     }
 }
 
@@ -240,28 +321,80 @@ Exp::Exp(const Call *call) : Node()
         symTableEntry *symbol = stacks.getSymbol(call->val);
         this->val = call->val;
         this->type = symbol->type;
+        if (reg == "")
+        {
+            reg = code_gen.allocateReg(0);
+        }
+        reg = call->reg;
     }
 }
 
-// EXP -> NUM, STRING, TRUE, FALSE
-Exp::Exp(std::string type) : type(type) {}
-
-// Exp -> NUM B
-Exp::Exp(std::string type, const Node *node)
+// EXP -> NUM, STRING, TRUE, FALSE !!! not used anymore !!!
+Exp::Exp(std::string type) : type(type)
 {
-    try
+}
+
+// Exp -> NUM B / NUM, STRING, TRUE, FALSE
+Exp::Exp(std::string type, const Node *node) : type(type), Node(node->val)
+{
+    if (type == "byte")
     {
-        if (type == "byte" && node && stoi(node->val) <= 255)
+        try
         {
-            this->type = type;
-            return;
+            if (type == "byte" && node && stoi(node->val) <= 255)
+            {
+                this->type = type;
+                reg = code_gen.allocateReg(0);
+                buffer.emit(reg + " = add i8 " + val + ", 0");
+                return;
+            }
+        }
+        catch (std::out_of_range)
+        {
+        }
+        output::errorByteTooLarge(yylineno, node->val);
+        exit(0);
+    }
+    else if (type == "int")
+    {
+        this->type = type;
+        reg = code_gen.allocateReg(0);
+        buffer.emit(reg + " = add i32 " + val + ", 0");
+    }
+    else if (type == "bool")
+    {
+        this->type = type;
+        reg = code_gen.allocateReg(0);
+        if (node->val == "true")
+        {
+            buffer.emit(reg + " = add i1 1, 0");
+        }
+        else if (node->val == "false")
+        {
+            buffer.emit(reg + " = add i1 0, 0");
         }
     }
-    catch (std::out_of_range)
+    else // type == string
     {
+        this->type = type;
+        // Extract the terminal value and remove the last character.std::string str = terminal->value;
+        std::string str = node->val;
+        str.pop_back();
+
+        // Generate a fresh global variable for the constant string representation.
+        std::string temp_register = code_gen.allocateReg(1);
+        std::string str_length = std::to_string(str.length());
+
+        // Emit the global constant with the adjusted string.
+        buffer.emitGlobal(temp_register + " = constant [" + str_length + " x i8] c\"" + str + "\\00\"");
+
+        // Create a temporary register pointer for the GEP (getelementptr) instruction.
+        std::string temp_reg_ptr = "%" + temp_register.substr(1);
+        buffer.emit(temp_reg_ptr + ".ptr = getelementptr [" + str_length + " x i8], [" + str_length + " x i8]* " + temp_register + ", i32 0, i32 0");
+
+        // Assign the result to the output register.
+        reg = temp_reg_ptr + ".ptr";
     }
-    output::errorByteTooLarge(yylineno, node->val);
-    exit(0);
 }
 
 // EXP -> NOT EXP
@@ -270,6 +403,11 @@ Exp::Exp(const Exp *operand, std::string opType)
     if (operand && operand->type == "bool" && opType == "logic")
     {
         this->type = "bool";
+        reg = code_gen.allocateReg(0);
+        true_label = buffer.freshLabel();
+        false_label = buffer.freshLabel();
+        next_label = buffer.freshLabel();
+        buffer.emit(reg + " = sub i1 1, " + operand->reg);
     }
     else
     {
@@ -280,30 +418,29 @@ Exp::Exp(const Exp *operand, std::string opType)
 // EXP -> EXP OP EXP
 Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::string op)
 {
-    //dynamic cast to exp?
+    // dynamic cast to exp?
 
     if (operand1 && operand2)
     {
 
         if (opType == "logic")
         {
-            if(!(operand1->type == operand2->type && operand2->type == "bool"))
+            if (!(operand1->type == operand2->type && operand2->type == "bool"))
             {
-            output::errorMismatch(yylineno);
-            exit(0);
+                output::errorMismatch(yylineno);
+                exit(0);
             }
             this->type = "bool";
             true_label = buffer.freshLabel();
             false_label = buffer.freshLabel();
             next_label = buffer.freshLabel();
-            if(op == "and")
+            if (op == "and")
             {
                 buffer.emit(reg + " = and i1 " + operand1->reg + ", " + operand2->reg);
             }
-            else if(op == "or")
+            else if (op == "or")
             {
                 buffer.emit(reg + " = or i1 " + operand1->reg + ", " + operand2->reg);
-
             }
         }
         else if (opType == "relop")
@@ -313,20 +450,20 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
                 this->type = "bool";
                 string fresh_reg1 = codeGenerator.freshVar();
                 string fresh_reg2 = codeGenerator.freshVar();
-                if(operand1->type == "int")
+                if (operand1->type == "int")
                 {
-                    buffer.emit(fresh_reg1 +" = add i32 " + operand1->reg + ", 0");
+                    buffer.emit(fresh_reg1 + " = add i32 " + operand1->reg + ", 0");
                 }
-                else if(operand1->type == "byte")
+                else if (operand1->type == "byte")
                 {
                     buffer.emit(fresh_reg1 + " = zext i8 " + operand1->reg + " to i32");
                 }
 
-                if(operand2->type == "int")
+                if (operand2->type == "int")
                 {
-                    buffer.emit(fresh_reg2 +" = add i32 " + operand2->reg + ", 0");
+                    buffer.emit(fresh_reg2 + " = add i32 " + operand2->reg + ", 0");
                 }
-                else if(operand2->type == "byte")
+                else if (operand2->type == "byte")
                 {
                     buffer.emit(fresh_reg2 + " = zext i8 " + operand2->reg + " to i32");
                 }
@@ -339,13 +476,13 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
         }
         else if (opType == "arithmetic")
         {
-            //handling an unrelated type 
-            if((operand1->type != "int" && operand1->type != "byte")||(operand2->type != "int" && operand2->type != "byte"))
+            // handling an unrelated type
+            if ((operand1->type != "int" && operand1->type != "byte") || (operand2->type != "int" && operand2->type != "byte"))
             {
-            output::errorMismatch(yylineno);
-            exit(0);
+                output::errorMismatch(yylineno);
+                exit(0);
             }
-            
+
             if (operand1->isNumExp() && operand2->isNumExp())
             {
                 if (operand1->type == "int" || operand2->type == "int")
@@ -353,25 +490,25 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
                     this->type = "int";
                     string fresh_reg1 = code_gen.allocateReg();
                     string fresh_reg2 = code_gen.allocateReg();
-                    if(operand1->type == "int")
+                    if (operand1->type == "int")
                     {
-                        buffer.emit(fresh_reg1 +" = add i32 " + operand1->reg + ", 0");
+                        buffer.emit(fresh_reg1 + " = add i32 " + operand1->reg + ", 0");
                     }
-                    else if(operand1->type == "byte")
-                    {   
+                    else if (operand1->type == "byte")
+                    {
                         buffer.emit(fresh_reg1 + " = zext i8 " + operand1->reg + " to i32");
                     }
-                    if(operand2->type == "int")
+                    if (operand2->type == "int")
                     {
-                        buffer.emit(fresh_reg2 +" = add i32 " + operand2->reg + ", 0");
+                        buffer.emit(fresh_reg2 + " = add i32 " + operand2->reg + ", 0");
                     }
-                    else if(operand2->type == "byte")
+                    else if (operand2->type == "byte")
                     {
                         buffer.emit(fresh_reg2 + " = zext i8 " + operand2->reg + " to i32");
                     }
 
                     string text_op = binopGetter(op);
-                    if(text_op == "div")
+                    if (text_op == "div")
                     {
                         buffer.emit("call void @check_division(i32 " + fresh_reg2 + ")");
                         buffer.emit(reg + " = sdiv i32 " + fresh_reg1 + ", " + fresh_reg2);
@@ -385,7 +522,7 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
                 {
                     this->type = "byte";
                     string text_op = binopGetter(op);
-                    if(text_op == "div")
+                    if (text_op == "div")
                     {
                         string old_reg = code_gen.freshVar();
                         buffer.emit(old_reg + " = zext i8 " + operand2->reg + "to i32");
@@ -410,16 +547,38 @@ Exp::Exp(const Exp *operand, const Type *type)
     if (operand && operand->isNumExp() && type && type->isNum())
     {
         this->type = type->getType();
+        reg = code_gen.allocateReg(0);
+
+        if (type->type == "int" && operand->type == "int")
+        {
+            buffer.emit(reg + " = add i32 " + operand->reg + ", 0");
+            this->type = "int";
+        }
+        else if (type->type == "byte" && operand->type == "int")
+        {
+            buffer.emit(reg + " = trunc i32 " + operand->reg + " to i8");
+            this->type = "byte";
+        }
+        else if (type->type == "int" && operand->type == "byte")
+        {
+            buffer.emit(reg + " = zext i8 " + operand->reg + " to i32");
+            this->type = "int";
+        }
+        else if (type->type == "byte" && operand->type == "byte")
+        {
+            buffer.emit(reg + " = add i8 " + operand->reg + ", 0");
+            this->type = "byte";
+        }
     }
     else if (type->type != "byte" || type->type != "int")
     {
-            output::errorMismatch(yylineno);
-            exit(0);
+        output::errorMismatch(yylineno);
+        exit(0);
     }
-    else if(operand->type != "byte" || operand->type != "int")
+    else if (operand->type != "byte" || operand->type != "int")
     {
-            output::errorMismatch(yylineno);
-            exit(0);
+        output::errorMismatch(yylineno);
+        exit(0);
     }
 }
 
@@ -437,4 +596,18 @@ void check_bool(Node *node)
         exit(0);
     }
 }
+
+Label::Label() : Node("")
+{
+    true_label = buffer.freshLabel(); 
+    false_label = buffer.freshLabel(); 
+    next_label = buffer.freshLabel(); 
+}
+
+ifClass::ifClass(Exp* exp, Label* label)
+{
+    this->exp = exp;
+    this->label = label;
+}
+
 // -----

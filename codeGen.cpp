@@ -1,12 +1,14 @@
 #include "codeGen.hpp"
+#include "nodes.hpp"
+
 #include <iostream>
 using namespace std;
 
 extern CodeBuffer buffer;
 
-codeGen::codeGen() : maxNumReg(0){}
+codeGenerator::codeGenerator() : maxNumReg(0){}
 
-string codeGen::allocateReg(bool global){
+string codeGenerator::allocateReg(bool global){
     if(!global){
         string newReg = "%v" + std::to_string(maxNumReg++);
         return newReg;
@@ -18,7 +20,7 @@ string codeGen::allocateReg(bool global){
 }
 
 //---------------------Getters-----------------------//
-string codeGen::relopGetter(const string &operation){
+string codeGenerator::relopGetter(const string &operation){
     string text;
     if (operation == "==") {
         text = "eq";
@@ -36,7 +38,7 @@ string codeGen::relopGetter(const string &operation){
     return text;
 }
 
-string codeGen::binopGetter(const string &operation) {
+string codeGenerator::binopGetter(const string &operation) {
     string text;
     if (operation == "+") {
         text = "add";
@@ -83,7 +85,7 @@ void codeGen::relopCode(Exp *exp, const Exp *op1, const Exp *op2, const string &
     //check if we need to use phi, bracnh or handle condition
 }
 */
-void codeGen::globalCode() {
+void codeGenerator::globalCode() {
     buffer.emit("@.DIV_BY_ZERO_ERROR = internal constant [23 x i8] c\"Error division by zero\\00\"");
     buffer.emit("define void @check_division(i32) {");
     buffer.emit("%valid = icmp eq i32 %0, 0");
@@ -97,4 +99,28 @@ void codeGen::globalCode() {
     buffer.emit("}");
 }
 
+
+//---------------------Helper Emits-----------------------//
+
+void CodeGenerator::emitBranchCondition(const std::string& conditionReg, const std::string& trueLabel, const std::string& falseLabel) {
+    buffer.emit("br i1 " + conditionReg + ", label %" + trueLabel + ", label %" + falseLabel);
+}
+
+void CodeGenerator::emitLabel(const std::string& label) {
+    buffer.emit(label + ":");
+}
+
+void CodeGenerator::emitUnconditionalBranch(const std::string& label) {
+    buffer.emit("br label %" + label);
+}
+
+void CodeGenerator::emitPhiInstruction(const std::string& resultReg, const std::string& type, const std::string& trueValue, const std::string& trueLabel, const std::string& falseValue, const std::string& falseLabel) {
+    buffer.emit(resultReg + " = phi " + type + " [" + trueValue + ", %" + trueLabel + "], [" + falseValue + ", %" + falseLabel + "]");
+}
+
+void CodeGenerator::emitPhiNodeForExp(const std::string& reg, const std::string& trueLabel, const std::string& falseLabel, const std::string& nextLabel) {
+    emitPhiInstruction(reg, "i1", "1", trueLabel, "0", falseLabel);
+    emitUnconditionalBranch(nextLabel);
+    emitLabel(nextLabel);
+}
 
