@@ -100,7 +100,7 @@ Exp : LPAREN Exp RPAREN { $$ = new Exp(dynamic_cast<Exp*>($2));}
     code_gen.emitLabel(dynamic_cast<Label*>($3)->false_label);
     code_gen.emitUnconditionalBranch(dynamic_cast<Label*>($3)->next_label);
     code_gen.emitLabel(dynamic_cast<Label*>($3)->next_label);
-    code_gen.emitPhiNodeForExp(dynamic_cast<Exp*>($$), dynamic_cast<Label*>($3)->true_label2, dynamic_cast<Label*>($3)->false_label, dynamic_cast<Label*>($3)->next_label); }
+    code_gen.emitPhiNodeForExp(code_gen.allocateReg(0), dynamic_cast<Label*>($3)->true_label2, dynamic_cast<Label*>($3)->false_label, dynamic_cast<Label*>($3)->next_label); }
     | Exp OR LABLE 
     { code_gen.emitBranchCondition(dynamic_cast<Exp*>($1)->reg, dynamic_cast<Label*>($3)->true_label, dynamic_cast<Label*>($3)->false_label);
     code_gen.emitLabel(dynamic_cast<Label*>($3)->false_label); } 
