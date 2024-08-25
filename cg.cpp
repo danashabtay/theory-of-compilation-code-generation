@@ -85,7 +85,7 @@ void CodeBuffer::printDef()
 
 void CodeBuffer::firstemits() 
 {
-	Code_gen.globalCode();
+	code_gen.globalCode();
     functionsDec();
     printDef();
 }

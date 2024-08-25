@@ -38,6 +38,7 @@ public:
 
 	void functionsDec();
 	void printDef();
+	void firstemits();
 };
 
 #endif

@@ -13,7 +13,7 @@ class Node
 {
 
 public:
-    string reg = "";
+    std::string reg = "";
     std::string val;
 
     Node(const std::string value = "");
@@ -60,7 +60,7 @@ public:
     std::string next_label = "";
 
     // Methods:
-    Exp::Exp();
+    Exp();
     Exp(const Exp *other);
     Exp(const Node *id);
     Exp(const Call *call);
@@ -110,6 +110,8 @@ public:
     std::string true_label;
     std::string false_label;
     std::string next_label;
+    std::string false_label2;
+    std::string true_label2;
 
     Label();
     virtual ~Label() = default;

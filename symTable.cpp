@@ -81,7 +81,7 @@ void symTableStack::addTable(bool loop)
 void symTableStack::removeTable()
 {
     symTable *curr_table = tableStack.back();
-    output::endScope();
+    //output::endScope();
 
     /* printing symbols:
     for (auto it = (*curr_table).symbolsTable.begin(); it != (*curr_table).symbolsTable.end(); it++)
@@ -164,6 +164,6 @@ void symTableStack::printScope()
 void symTableStack::cleanUp(){
     while(!tableStack.empty())
     {
-        tableStack.removeTable();
+        removeTable();
     }
 }

@@ -16,8 +16,8 @@ public:
     string relopGetter(const string &operation);
     string binopGetter(const string &operation);
     void globalCode();
-    void binopCode(Exp *exp, const Exp &op1, const Exp &op2, const string &op);
-    void relopCode(Exp *exp, const Exp *op1, const Exp *op2, const string &op);
+    //void binopCode(Exp *exp, const Exp &op1, const Exp &op2, const string &op);
+    //void relopCode(Exp *exp, const Exp *op1, const Exp *op2, const string &op);
     void emitBranchCondition(const std::string& conditionReg, const std::string& trueLabel, const std::string& falseLabel);
     void emitLabel(const std::string& label);
     void emitUnconditionalBranch(const std::string& label);
