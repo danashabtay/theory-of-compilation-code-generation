@@ -40,9 +40,12 @@ Program::Program() {}
 
 // Statement:
 
-// Statement -> CONTINUE SC / BREAK SC
+
+
+// Statement -> CONTINUE SC / BREAK SC 
 Statement::Statement(const Node *node)
 {
+    /// TODO: handle labels 
     if (node->val == "continue")
     {
         if (!stacks.is_loop())
@@ -69,9 +72,15 @@ Statement::Statement(const Type *type, const Node *node) : Node()
         output::errorDef(yylineno, node->val);
         exit(0);
     }
-
     stacks.insertSymbol(node->val, type->type, false);
-    this->val = type->val; //?? - statement and type have no val
+    symTableEntry* symbol = stacks.getSymbol(node->val);
+    Exp* tempExp = new Exp();
+    tempExp->reg = codeGenerator.allocateReg(0);
+    std::string regAddress = codeGenerator.allocateReg(0);
+    buffer.emit(tempExp->reg + " = add i32 0, 0");
+    buffer.emit(regAddress + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
+    buffer.emit("store i32 " + tempExp->reg + ", i32* " + regAddress);
+    delete tempExp;
 }
 
 /// Statement -> TYPE ID ASSIGN EXP SC
@@ -106,7 +115,33 @@ Statement::Statement(Type *type, Node *node, Exp *exp) : Node()
         }
         stacks.insertSymbol(node->val, exp->type, false);
     }
-    /// TODO: need to check for cases of null?
+    symTableEntry *symbol = stacks.getSymbol(node->val);
+    if (type->type == "byte") {
+        string regAddress = codeGenerator.allocateReg(0);
+        string regExtended = codeGenerator.allocateReg(0);
+        buffer.emit(regExtended + " = zext i8 " + exp->reg + " to i32");  // Extend the 8-bit byte to a 32-bit integer
+        buffer.emit(regAddress + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
+        buffer.emit("store i32 " + regExtended + ", i32* " + regAddress); // Store in memory
+        }
+    else if (type->type =="int"){
+        string regAddress = codeGenerator.allocateReg(0);
+        string finalReg;
+        if (exp->type == "byte") {
+            finalReg = codeGenerator.allocateReg(0);
+            buffer.emit(finalReg + " = zext i8 " + exp->reg + " to i32");
+        } else {
+            finalReg = exp->reg; //no need to change 
+        }
+        buffer.emit(regAddress + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
+        buffer.emit("store i32 " + finalReg + ", i32* " + regAddress);
+    }
+    else if (type->type == "bool"){
+        string regPtr = codeGenerator.allocateReg(0);
+        string regExtended = codeGenerator.allocateReg(0);
+        buffer.emit(regExtended + " = zext i1 " + exp->reg + " to i32");  // Extend the 1-bit to 32-bit
+        buffer.emit(regPtr + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
+        buffer.emit("store i32 " + regExtended + ", i32* " + regPtr);
+    }
 }
 /// Statement -> ID ASSIGN EXP SC
 Statement::Statement(Node *node, Exp *exp) : Node()

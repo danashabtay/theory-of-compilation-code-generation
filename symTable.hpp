@@ -25,7 +25,6 @@ public:
     std::vector<symTableEntry *> symbolsTable;
     int curr_offset;
     bool loop;
- 
     symTable(int curr_offset, bool loop);
     ~symTable();
     bool doesSymbolExists(const std::string name);
