@@ -54,7 +54,7 @@ public:
     std::string type;
     std::string val;
     std::string reg = "";
-    bool isVar;
+    bool is_variable;
     std::string true_label = "";
     std::string false_label = "";
     std::string next_label = "";
@@ -86,6 +86,7 @@ public:
 class Statement : public Node
 {
 public:
+    Statement(): Node(){}
     Statement(const Node *node);
     Statement(const Type *type, const Node *node);
     Statement(Type *type, Node *node, Exp *exp);
@@ -118,7 +119,7 @@ class ifClass: public Exp{
 public:
     Exp* exp;
     Label* label;
-    
+
     ifClass(Exp* exp, Label* label);
     virtual ~ifClass() = default;
 };

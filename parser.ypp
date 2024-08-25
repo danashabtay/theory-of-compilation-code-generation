@@ -11,6 +11,9 @@ extern int yylineno;
 extern globalCode buffer;
 extern CodeGen code_gen;
 extern symTableStack stacks;
+vector<string> whileContinueLables;
+vector<string> whileBreakLables;
+
 %}
 
 
@@ -57,17 +60,17 @@ Statements : Statement {new Statements(dynamic_cast<Statement*>($1));}
             | Statements Statement {new Statements(dynamic_cast<Statements*>($1),dynamic_cast<Statement*>($2));}
 ;
 
-Statement : LBRACE {stacks.addTable(false);} Statements {stacks.removeTable();} RBRACE 
+Statement : LBRACE {stacks.addTable(false);} Statements {stacks.removeTable();} RBRACE {$$ = new Statement(); delete $3;}
             | Type ID SC {$$ = new Statement(dynamic_cast<Type*>($1),$2);}
             | Type ID ASSIGN Exp SC {$$ = new Statement(dynamic_cast<Type*>($1),$2,dynamic_cast<Exp*>($4));  }
             | ID ASSIGN Exp SC {$$ = new Statement($1, dynamic_cast<Exp*>($3));}
-            | Call SC { }
+            | Call SC { $$ = new Statement(dynamic_cast<Call*>($1)); }
             | RETURN SC {buffer.emit("ret i32 0"); } // nothing????
-            | IF LPAREN IsBool RPAREN OS Statement {$$ =  new Statement(dynamic_cast<Exp*>($3));stacks.removeTable();}  
-            | IF LPAREN IsBool RPAREN OS Statement ELSE {stacks.removeTable();} OS Statement {$$ =  new Statement(dynamic_cast<Exp*>($3));stacks.removeTable();}  //check bool for else?
-            | WHILE LPAREN IsBool RPAREN {stacks.addTable(true);} Statement {$$ =  new Statement(dynamic_cast<Exp*>($3));stacks.removeTable();}
-            | BREAK SC { $$ = new Statement($1); }
-            | CONTINUE SC { $$ = new Statement($1); }
+            | IFRuleBeginning Statement {$$ = new Statement(dynamic_cast<Exp*>($1)->exp); stacks.removeTable(); buffer.emit("br label %" + dynamic_cast<ifClass*>($1)->label->false_label); buffer.emit(dynamic_cast<ifClass *>($1)->label->false_label + ":");}  
+            | IFRuleBeginning Statement ELSE {stacks.removeTable(); buffer.emit("br label %" + dynamic_cast<ifClass*>($1)->label->next_label); buffer.emit(dynamic_cast<ifClass*>($1)->label->false_label + ":"); } OS Statement {$$ =  new Statement(dynamic_cast<Exp*>($1)->exp); stacks.removeTable(); buffer.emit("br label %" + dynamic_cast<ifClass*>($1)->label->next_label); buffer.emit(dynamic_cast<ifClass*>($1)->label->next_label + ":"); }  //check bool for else?
+            | WHILE LableWhile LPAREN IsBool RPAREN {whileBreakLables.push_back(dynamic_cast<Label *>($2)->false_label); whileContinueLables.push_back(dynamic_cast<Label *>($2)->next_label); stacks.addTable(true); buffer.emit("br i1 " + dynamic_cast<Exp *>($4)->reg + ", label %" + dynamic_cast<Label *>($2)->true_label + ", label %" + dynamic_cast<Label *>($2)->false_label); buffer.emit(dynamic_cast<Label *>($2)->true_label + ":"); } Statement {$$ =  new Statement(dynamic_cast<Exp*>($4)); buffer.emit(dynamic_cast<Label *>($2)->false_label + ":"); whileBreakLables.pop_back(); whileContinueLables.pop_back(); stacks.removeTable();}
+            | BREAK SC { $$ = new Statement($1); code_gen.emitUnconditionalBranch( whileBreakLables.back() ); }
+            | CONTINUE SC { $$ = new Statement($1); code_gen.emitUnconditionalBranch( whileContinueLables.back() ); }
 ;
 
 Call : ID LPAREN Exp RPAREN { $$ = new Call($1, dynamic_cast<Exp*>($3)); }
@@ -123,7 +126,13 @@ Exp : LPAREN Exp RPAREN { $$ = new Exp(dynamic_cast<Exp*>($2));}
 OS:                                                              {stacks.addTable(false);}
 IsBool: Exp                                                      {check_bool($1);}
 Label:                                                           {$$ = new Label();}
-
+LableWhile:
+                                                                 {$$ = new Label();
+                                                                  buffer.emit("br label %" + dynamic_cast<Label *>($$)->next_label);
+                                                                  buffer.emit(dynamic_cast<Label *>($$)->next_label + ":"); }
+IFRuleBeginning: IF LPAREN IsBool RPAREN OS LABEL                {buffer.emit("br i1 " + dynamic_cast<Exp *>($3)->reg + ", label %" + dynamic_cast<Label *>($6)->true_label + ", label %" + dynamic_cast<Label *>($6)->false_label);
+                                                                  $$ = new ifClass(dynamic_cast<Exp *>($3), dynamic_cast<Label *>($6));
+                                                                  buffer.emit(dynamic_cast<Label *>($6)->true_label + ":"); }
 %%
 
 /* C code section */
@@ -135,7 +144,7 @@ CodeBuffer buffer = CodeBuffer();
 int main() {
     buffer.firstemits();
     buffer.emit("define i32 @main(){");
-    stacks.rbp = Code_gen.allocateReg(0);
+    stacks.rbp = code_gen.allocateReg(0);
     buffer.emit(stacks.rbp + " = alloca i32, i32 50");
     //-----more emits------------------------------------//
     int parser = yyparse();
