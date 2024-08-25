@@ -108,15 +108,15 @@ Statement::Statement(Type *type, Node *node, Exp *exp) : Node()
     {
         if (!check_types_compatible(type->type, exp->type))
         {
-            cout << "16" << endl;
-            buffer.emit("16");
+            //cout << "16" << endl;
+            //buffer.emit("16");
             output::errorMismatch(yylineno);
             exit(0);
         }
         if (type->type == "byte" && exp->type == "int")
         {
-            cout << "17" << endl;
-            buffer.emit("17");
+            //cout << "17" << endl;
+            //buffer.emit("17");
             output::errorMismatch(yylineno);
             exit(0);
         }
@@ -126,8 +126,8 @@ Statement::Statement(Type *type, Node *node, Exp *exp) : Node()
     {
         if (exp->type == "string")
         {
-            cout << "18" << endl;
-            buffer.emit("18");
+            //cout << "18" << endl;
+            //buffer.emit("18");
             output::errorMismatch(yylineno);
             exit(0);
         }
@@ -187,16 +187,16 @@ Statement::Statement(Node *node, Exp *exp) : Node()
     symTableEntry *symbol = stacks.getSymbol(node->val);
     if (symbol->isFunc || !check_types_compatible(symbol->type, exp->type))
     {
-        cout << "19" << endl;
-        buffer.emit("19");
+        //cout << "19" << endl;
+        //buffer.emit("19");
 
         output::errorMismatch(yylineno);
         exit(0);
     }
     if (symbol->type == "byte" && exp->type == "int")
     {
-        cout << "20" << endl;
-        buffer.emit("20");
+        //cout << "20" << endl;
+        //buffer.emit("20");
         output::errorMismatch(yylineno);
         exit(0);
     }
@@ -249,8 +249,8 @@ Statement::Statement(Exp *exp) : Node()
     // checking if condition given is of type bool
     if (exp->type != "bool")
     {
-        cout << "here" << endl;
-        buffer.emit("here");
+        //cout << "here" << endl;
+        //buffer.emit("here");
         output::errorMismatch(yylineno);
         exit(0);
     }
@@ -295,8 +295,8 @@ Call::Call(const Node *node, const Exp *exp)
             toPrint = "BOOL";
         else if (symbol->params == "byte")
             toPrint = "BYTE";
-        cout << "22" << endl;
-        buffer.emit("22");
+        //cout << "22" << endl;
+        //buffer.emit("22");
         output::errorPrototypeMismatch(yylineno, name, toPrint);
         exit(0);
     }
@@ -384,6 +384,7 @@ Exp::Exp(const Node *id) : Node(), is_variable(true)
             exit(0);
         }
         symTableEntry *symbol = stacks.getSymbol(id->val);
+        //cout << "exp type and val: " << type << val << endl;
         this->val = id->val;
         this->type = symbol->type;
         if (reg == "")
@@ -465,17 +466,21 @@ Exp::Exp(std::string type, const Node *node) : type(type), Node(node->val)
         // cout << "here2" << endl;
         // buffer.emit("here2");
         this->type = type;
+        //cout << "type is : " << type << endl;
         reg = code_gen.allocateReg(0);
         if (node->val == "true")
         {
-            cout << "here3" << endl;
+            //cout << "here3" << endl;
+            
+            this->val = "true";
 
+            //cout << "type and val are: " << this->type << this->val  << endl;
             buffer.emit(reg + " = add i1 1, 0");
         }
         else if (node->val == "false")
         {
-            cout << "here4" << endl;
-
+            //cout << "here4" << endl;
+            this->val = "false";
             buffer.emit(reg + " = add i1 0, 0");
         }
     }
@@ -491,7 +496,7 @@ Exp::Exp(std::string type, const Node *node) : type(type), Node(node->val)
         std::string str_length = std::to_string(str.length());
 
         // Emit the global constant with the adjusted string.
-        buffer.emitGlobal(temp_register + " = constant [" + str_length + " x i8] c\"" + str + "\\00\"");
+        buffer.emitGlobal(temp_register + " = constant [" + str_length + " x i8] c" + str + "\\00\"");
 
         // Create a temporary register pointer for the GEP (getelementptr) instruction.
         std::string temp_reg_ptr = "%" + temp_register.substr(1);
@@ -524,7 +529,7 @@ Exp::Exp(const Exp *operand, std::string opType)
 Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::string op) : is_variable(false)
 {
     // dynamic cast to exp?
-
+    this->reg = code_gen.allocateReg(0);
     if (operand1 && operand2)
     {
 
@@ -532,8 +537,8 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
         {
             if (!(operand1->type == operand2->type && operand2->type == "bool"))
             {
-                cout << "8" << endl;
-                buffer.emit("8");
+                //cout << "8" << endl;
+                //buffer.emit("8");
                 output::errorMismatch(yylineno);
                 exit(0);
             }
@@ -543,7 +548,7 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
             next_label = buffer.freshLabel();
             if (op == "and")
             {
-                buffer.emit(reg + " = and i1 " + operand1->reg + ", " + operand2->reg);
+                buffer.emit(this->reg + " = and i1 " + operand1->reg + ", " + operand2->reg);
             }
             else if (op == "or")
             {
@@ -578,8 +583,8 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
                 string op_text = code_gen.relopGetter(op);
                 buffer.emit(reg + "= icmp " + op_text + " i32 " + fresh_reg1 + ", " + fresh_reg2);
             }
-            cout << "9" << endl;
-            buffer.emit("9");
+            //cout << "9" << endl;
+            //buffer.emit("9");
             output::errorMismatch(yylineno);
             exit(0);
         }
@@ -588,8 +593,8 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
             // handling an unrelated type
             if ((operand1->type != "int" && operand1->type != "byte") || (operand2->type != "int" && operand2->type != "byte"))
             {
-                cout << "10" << endl;
-                buffer.emit("10");
+                //cout << "10" << endl;
+                //buffer.emit("10");
                 output::errorMismatch(yylineno);
                 exit(0);
             }
@@ -651,11 +656,11 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
 }
 
 // EXP -> LPAREN Type RPAREN Exp
-Exp::Exp(const Exp *operand, const Type *type)
+Exp::Exp(const Exp *operand, const Type *type) : Node(operand->val), type(type->type)
 {
     if (operand && operand->isNumExp() && type && type->isNum())
     {
-        this->type = type->getType();
+        //this->type = type->type;
         reg = code_gen.allocateReg(0);
 
         if (type->type == "int" && operand->type == "int")
@@ -681,15 +686,15 @@ Exp::Exp(const Exp *operand, const Type *type)
     }
     else if (type->type != "byte" || type->type != "int")
     {
-        cout << "12" << endl;
-        buffer.emit("12");
+        //cout << "12" << endl;
+        //buffer.emit("12");
         output::errorMismatch(yylineno);
         exit(0);
     }
     else if (operand->type != "byte" || operand->type != "int")
     {
-        cout << "13" << endl;
-        buffer.emit("13");
+        //cout << "13" << endl;
+        //buffer.emit("13");
         output::errorMismatch(yylineno);
         exit(0);
     }
@@ -705,7 +710,7 @@ void check_bool(Node *node)
     Exp *exp = dynamic_cast<Exp *>(node);
     if (exp->type != "bool")
     {
-        // cout << "val is: " << exp->val << "type is: " << exp->type << endl;
+        //cout << "val is: " << exp->val << "type is: " << exp->type << endl;
         // buffer.emit("val is: " +  exp->val + "type is: " + exp->type);
         // cout << "14" << endl;
         // buffer.emit("14");
