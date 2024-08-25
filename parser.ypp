@@ -62,7 +62,7 @@ Statement : LBRACE {stacks.addTable(false);} Statements {stacks.removeTable();} 
             | Type ID ASSIGN Exp SC {$$ = new Statement(dynamic_cast<Type*>($1),$2,dynamic_cast<Exp*>($4));  }
             | ID ASSIGN Exp SC {$$ = new Statement($1, dynamic_cast<Exp*>($3));}
             | Call SC { }
-            | RETURN SC { } // nothing????
+            | RETURN SC {buffer.emit("ret i32 0"); } // nothing????
             | IF LPAREN IsBool RPAREN OS Statement {$$ =  new Statement(dynamic_cast<Exp*>($3));stacks.removeTable();}  
             | IF LPAREN IsBool RPAREN OS Statement ELSE {stacks.removeTable();} OS Statement {$$ =  new Statement(dynamic_cast<Exp*>($3));stacks.removeTable();}  //check bool for else?
             | WHILE LPAREN IsBool RPAREN {stacks.addTable(true);} Statement {$$ =  new Statement(dynamic_cast<Exp*>($3));stacks.removeTable();}

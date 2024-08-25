@@ -21,6 +21,7 @@ static bool check_types_compatible(string type1, string type2)
     return true;
 }
 
+
 // Node:
 
 Node::Node(const std::string value) : val(value) {}
@@ -117,11 +118,7 @@ Statement::Statement(Type *type, Node *node, Exp *exp) : Node()
     }
     symTableEntry *symbol = stacks.getSymbol(node->val);
     if (type->type == "byte") {
-        string regAddress = codeGenerator.allocateReg(0);
-        string regExtended = codeGenerator.allocateReg(0);
-        buffer.emit(regExtended + " = zext i8 " + exp->reg + " to i32");  // Extend the 8-bit byte to a 32-bit integer
-        buffer.emit(regAddress + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
-        buffer.emit("store i32 " + regExtended + ", i32* " + regAddress); // Store in memory
+        code_gen.emitByteStatement(exp->reg,stacks.rbp,symbol->offset);
         }
     else if (type->type =="int"){
         string regAddress = codeGenerator.allocateReg(0);
@@ -136,13 +133,9 @@ Statement::Statement(Type *type, Node *node, Exp *exp) : Node()
         buffer.emit("store i32 " + finalReg + ", i32* " + regAddress);
     }
     else if (type->type == "bool"){
-        string regPtr = codeGenerator.allocateReg(0);
-        string regExtended = codeGenerator.allocateReg(0);
-        buffer.emit(regExtended + " = zext i1 " + exp->reg + " to i32");  // Extend the 1-bit to 32-bit
-        buffer.emit(regPtr + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
-        buffer.emit("store i32 " + regExtended + ", i32* " + regPtr);
+        code_gen.emitBoolStatement(exp->reg,stacks.rbp,symbol->offset);
     }
-}
+   
 /// Statement -> ID ASSIGN EXP SC
 Statement::Statement(Node *node, Exp *exp) : Node()
 {
@@ -164,10 +157,27 @@ Statement::Statement(Node *node, Exp *exp) : Node()
         output::errorMismatch(yylineno);
         exit(0);
     }
+    if (type->type == "byte") {
+        code_gen.emitByteStatement(exp->reg,stacks.rbp,symbol->offset);
+    }
+    else if (type->type == "bool"){
+        code_gen.emitBoolStatement(exp->reg,stacks.rbp,symbol->offset);
+    }
+    else if(type->type =="int"){
+        string regAddress = codeGenerator.allocateReg(0);
+        string reg = codeGenerator.allocateReg(0);
+        buffer.emit(regAddress + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
+        if (exp->type == "byte") {
+            buffer.emit(reg + " = zext i8 " + exp->reg + " to i32");
+        } else if(exp->type == "int"){
+            buffer.emit(reg + " = add i32 " + exp->reg + ", 0");
+        }
+        buffer.emit("store i32 " + reg + ", i32* " + regAddress);
+    }
 }
 
 /// Statement -> Call SC
-Statement::Statement(Call *call) : Node()
+Statement::Statement(Call *call) : Node() // no need to change 
 {
     if (!stacks.doesSymbolExists(call->val))
     {
@@ -187,7 +197,7 @@ Statement::Statement(Call *call) : Node()
 ///  Statement -> IF LPAREN Exp RPAREN Statement / ELSE Statement / WHILE LPAREN Exp RPAREN  Statement
 Statement::Statement(Exp *exp) : Node()
 {
-    // checkinh if condition given is of type bool
+    // checking if condition given is of type bool
     if (exp->type != "bool")
     {
         output::errorMismatch(yylineno);

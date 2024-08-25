@@ -124,3 +124,19 @@ void codeGenerator::emitPhiNodeForExp(const std::string& reg, const std::string&
     emitLabel(nextLabel);
 }
 
+void codeGenerator::emitBoolStatement(const std::string& expReg,  const std::string& rbp,  int offset){
+    string regPtr = codeGenerator.allocateReg(0);
+    string regExtended = codeGenerator.allocateReg(0);
+    buffer.emit(regExtended + " = zext i1 " + expReg + " to i32");  // Extend the 1-bit to 32-bit
+    buffer.emit(regPtr + " = getelementptr i32, i32* " + rbp + ", i32 " + std::to_string(offset));
+    buffer.emit("store i32 " + regExtended + ", i32* " + regPtr);
+}
+
+void codeGenerator::emitByteStatement(const std::string& expReg,  const std::string& rbp,  int offset){
+    string regAddress = codeGenerator.allocateReg(0);
+    string regExtended = codeGenerator.allocateReg(0);
+    buffer.emit(regExtended + " = zext i8 " + expReg + " to i32");  // Extend the 8-bit byte to a 32-bit integer
+    buffer.emit(regAddress + " = getelementptr i32, i32* " + rbp + ", i32 " + std::to_string(soffset));
+    buffer.emit("store i32 " + regExtended + ", i32* " + regAddress); // Store in memory
+}
+
