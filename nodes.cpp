@@ -107,7 +107,7 @@ Statement::Statement(Type *type, Node *node, Exp *exp) : Node()
     {
         if (!check_types_compatible(type->type, exp->type))
         {
-            cout << "16" << endl;
+            //cout << "16" << endl;
             //buffer.emit("16");
             output::errorMismatch(yylineno);
             exit(0);
@@ -186,7 +186,7 @@ Statement::Statement(Node *node, Exp *exp) : Node()
     symTableEntry *symbol = stacks.getSymbol(node->val);
     if (symbol->isFunc || !check_types_compatible(symbol->type, exp->type))
     {
-        cout << "19" << endl;
+        //cout << "19" << endl;
         //buffer.emit("19");
 
         output::errorMismatch(yylineno);
@@ -194,7 +194,7 @@ Statement::Statement(Node *node, Exp *exp) : Node()
     }
     if (symbol->type == "byte" && exp->type == "int")
     {
-        cout << "20" << endl;
+        //cout << "20" << endl;
         //buffer.emit("20");
         output::errorMismatch(yylineno);
         exit(0);
@@ -538,7 +538,7 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
         {
             if (!(operand1->type == operand2->type && operand2->type == "bool"))
             {
-                cout << "8" << endl;
+                //cout << "8" << endl;
                 //buffer.emit("8");
                 output::errorMismatch(yylineno);
                 exit(0);
@@ -594,7 +594,7 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
             // handling an unrelated type
             if ((operand1->type != "int" && operand1->type != "byte") || (operand2->type != "int" && operand2->type != "byte"))
             {
-                cout << "10" << endl;
+                //cout << "10" << endl;
                 //buffer.emit("10");
                 output::errorMismatch(yylineno);
                 exit(0);
@@ -687,14 +687,14 @@ Exp::Exp(const Exp *operand, const Type *type) : Node(operand->val), type(type->
     }
     else if (type->type != "byte" || type->type != "int")
     {
-        cout << "12" << endl;
+        //cout << "12" << endl;
         //buffer.emit("12");
         output::errorMismatch(yylineno);
         exit(0);
     }
     else if (operand->type != "byte" || operand->type != "int")
     {
-        cout << "13" << endl;
+        //cout << "13" << endl;
         //buffer.emit("13");
         output::errorMismatch(yylineno);
         exit(0);
@@ -713,7 +713,7 @@ void check_bool(Node *node)
     {
         //cout << "val is: " << exp->val << "type is: " << exp->type << endl;
         // buffer.emit("val is: " +  exp->val + "type is: " + exp->type);
-        cout << "14" << endl;
+        //cout << "14" << endl;
         // buffer.emit("14");
         output::errorMismatch(yylineno);
         exit(0);
