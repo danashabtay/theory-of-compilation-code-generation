@@ -127,7 +127,7 @@ public:
 };
 
 
-void check_bool(Exp* exp);
+void check_bool(Node *node);
 
 
 
