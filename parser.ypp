@@ -68,10 +68,10 @@ Statement : LBRACE {stacks.addTable(false);} Statements {stacks.removeTable();} 
             | Type ID ASSIGN Exp SC {$$ = new Statement(dynamic_cast<Type*>($1),$2,dynamic_cast<Exp*>($4));  }
             | ID ASSIGN Exp SC {$$ = new Statement($1, dynamic_cast<Exp*>($3));}
             | Call SC { $$ = new Statement(dynamic_cast<Call*>($1)); }
-            | RETURN SC {buffer.emit("ret i32 0"); } // nothing????
+            | RETURN SC {buffer.emit("ret i32 0"); } 
             | IFRuleBeginning Statement {$$ = new Statement(dynamic_cast<ifClass*>($1)->exp); stacks.removeTable(); buffer.emit("br label %" + dynamic_cast<ifClass*>($1)->label->false_label); buffer.emit(dynamic_cast<ifClass *>($1)->label->false_label + ":");} %prec LOWER_THAN_ELSE 
             | IFRuleBeginning Statement ELSE {stacks.removeTable(); buffer.emit("br label %" + dynamic_cast<ifClass*>($1)->label->next_label); buffer.emit(dynamic_cast<ifClass*>($1)->label->false_label + ":"); } OS Statement {$$ =  new Statement(dynamic_cast<ifClass*>($1)->exp); stacks.removeTable(); buffer.emit("br label %" + dynamic_cast<ifClass*>($1)->label->next_label); buffer.emit(dynamic_cast<ifClass*>($1)->label->next_label + ":"); }  //check bool for else?
-            | WHILE LableWhile LPAREN IsBool RPAREN {whileBreakLables.push_back(dynamic_cast<Label *>($2)->false_label); whileContinueLables.push_back(dynamic_cast<Label *>($2)->next_label); stacks.addTable(true); buffer.emit("br i1 " + dynamic_cast<Exp *>($4)->reg + ", label %" + dynamic_cast<Label *>($2)->true_label + ", label %" + dynamic_cast<Label *>($2)->false_label); buffer.emit(dynamic_cast<Label *>($2)->true_label + ":"); } Statement {$$ =  new Statement(dynamic_cast<Exp*>($4)); buffer.emit(dynamic_cast<Label *>($2)->false_label + ":"); whileBreakLables.pop_back(); whileContinueLables.pop_back(); stacks.removeTable();}
+            | WHILE LableWhile LPAREN IsBool RPAREN {whileBreakLables.push_back(dynamic_cast<Label *>($2)->false_label); whileContinueLables.push_back(dynamic_cast<Label *>($2)->next_label); stacks.addTable(true); buffer.emit("br i1 " + dynamic_cast<Exp *>($4)->reg + ", label %" + dynamic_cast<Label *>($2)->true_label + ", label %" + dynamic_cast<Label *>($2)->false_label); buffer.emit(dynamic_cast<Label *>($2)->true_label + ":"); } Statement {$$ =  new Statement(dynamic_cast<Exp*>($4)); buffer.emit("br label %" + dynamic_cast<Label *>($2)->next_label); buffer.emit(dynamic_cast<Label *>($2)->false_label + ":"); whileBreakLables.pop_back(); whileContinueLables.pop_back(); stacks.removeTable();}
             | BREAK SC { $$ = new Statement($1); code_gen.emitUnconditionalBranch( whileBreakLables.back() ); }
             | CONTINUE SC { $$ = new Statement($1); code_gen.emitUnconditionalBranch( whileContinueLables.back() ); }
 ;
@@ -107,7 +107,7 @@ Exp : LPAREN Exp RPAREN { $$ = new Exp(dynamic_cast<Exp*>($2));}
     code_gen.emitUnconditionalBranch(dynamic_cast<Label*>($3)->next_label);
     code_gen.emitLabel(dynamic_cast<Label*>($3)->next_label);
     dynamic_cast<Exp *>($$)->reg = code_gen.allocateReg(0); 
-    code_gen.emitPhiNodeForExp(dynamic_cast<Exp *>($$)->reg, dynamic_cast<Label*>($3)->true_label2, dynamic_cast<Label*>($3)->false_label, dynamic_cast<Label*>($3)->next_label); }
+    code_gen.emitPhiInstruction(dynamic_cast<Exp *>($$)->reg, "i1", "1", dynamic_cast<Label*>($3)->true_label2, "0", dynamic_cast<Label*>($3)->false_label); }
     | Exp OR Label 
     { code_gen.emitBranchCondition(dynamic_cast<Exp*>($1)->reg, dynamic_cast<Label*>($3)->true_label, dynamic_cast<Label*>($3)->false_label);
     code_gen.emitLabel(dynamic_cast<Label*>($3)->false_label); } 
@@ -120,7 +120,7 @@ Exp : LPAREN Exp RPAREN { $$ = new Exp(dynamic_cast<Exp*>($2));}
     code_gen.emitUnconditionalBranch(dynamic_cast<Label*>($3)->next_label);
     code_gen.emitLabel(dynamic_cast<Label*>($3)->next_label);
     dynamic_cast<Exp *>($$)->reg = code_gen.allocateReg(0); 
-    code_gen.emitPhiNodeForExp(dynamic_cast<Exp *>($$)->reg, dynamic_cast<Label*>($3)->true_label, dynamic_cast<Label*>($3)->false_label2, dynamic_cast<Label*>($3)->next_label); }
+    code_gen.emitPhiInstruction(dynamic_cast<Exp *>($$)->reg, "i1", "1",  dynamic_cast<Label*>($3)->true_label, "0", dynamic_cast<Label*>($3)->false_label2); }
     | Exp EQUALITY Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "relop",$2->val); }
     | Exp RELATIONAL Exp { $$ = new Exp(dynamic_cast<Exp*>($1), dynamic_cast<Exp*>($3), "relop",$2->val); }
     | LPAREN Type RPAREN Exp { $$ = new Exp(dynamic_cast<Exp*>($4), dynamic_cast<Type*>($2)); }
