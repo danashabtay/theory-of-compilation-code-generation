@@ -144,7 +144,7 @@ Statement::Statement(Type *type, Node *node, Exp *exp) : Node()
         if (exp->type == "byte")
         {
             finalReg = code_gen.allocateReg(0);
-            buffer.emit(finalReg + " = zext i8 " + exp->reg + " to i32");
+            code_gen.emitToStatement(finalReg, "zext", 8, exp->reg, 32);
         }
         else
         {
@@ -214,11 +214,11 @@ Statement::Statement(Node *node, Exp *exp) : Node()
         buffer.emit(regAddress + " = getelementptr i32, i32* " + stacks.rbp + ", i32 " + std::to_string(symbol->offset));
         if (exp->type == "byte")
         {
-            buffer.emit(reg + " = zext i8 " + exp->reg + " to i32");
+            code_gen.emitToStatement(reg, "zext", 8, exp->reg, 32);
         }
         else if (exp->type == "int")
         {
-            buffer.emit(reg + " = add i32 " + exp->reg + ", 0");
+            code_gen.emitZeroAddStatement(reg, "add i32 ", exp->reg);
         }
         buffer.emit("store i32 " + reg + ", i32* " + regAddress);
     }
@@ -310,11 +310,11 @@ Call::Call(const Node *node, const Exp *exp)
         string new_reg = code_gen.allocateReg(0);
         if (exp->type == "byte")
         {
-            buffer.emit(new_reg + " = zext i8 " + exp->reg + " to i32");
+            code_gen.emitToStatement(new_reg, "zext", 8, exp->reg, 32);
         }
         else
         {
-            buffer.emit(new_reg + " = add i32 " + exp->reg + ", 0");
+            code_gen.emitZeroAddStatement(new_reg, "add i32 ", exp->reg);
         }
         buffer.emit("call void @" + val + "(i32 " + new_reg + ")");
     }
@@ -356,19 +356,19 @@ Exp::Exp(const Exp *other) : Node(other->val), type(other->type)
     reg = code_gen.allocateReg(false);
     if (type == "int")
     {
-        buffer.emit(reg + " = add i32 " + other->reg + ", 0");
+        code_gen.emitZeroAddStatement(reg, "add i32 ", other->reg);
     }
     else if (type == "bool")
     {
-        buffer.emit(reg + " = add i1 " + other->reg + ", 0");
+        code_gen.emitZeroAddStatement(reg, "add i1 ", other->reg);
     }
     else if (type == "string")
     {
-        buffer.emit(reg + " = add i8* " + other->reg + ", 0");
+        code_gen.emitZeroAddStatement(reg, "add i8* ", other->reg);
     }
     else if (type == "byte")
     {
-        buffer.emit(reg + " = add i8 " + other->reg + ", 0");
+        code_gen.emitZeroAddStatement(reg, "add i8 ", other->reg);
     }
 }
 
@@ -397,16 +397,16 @@ Exp::Exp(const Node *id) : Node(), is_variable(true)
         {
             string register_c = code_gen.allocateReg(0);
             string reg_new = code_gen.allocateReg(0);
-            buffer.emit(register_c + " = add i32 " + reg + ", 0");
-            buffer.emit(reg_new + " = icmp ne i32 " + register_c + ", 0");
+            code_gen.emitZeroAddStatement(register_c, "add i32 ", reg);
+            code_gen.emitZeroAddStatement(reg_new, "icmp ne i32 ", register_c);
             reg = reg_new;
         }
         else if (symbol->type == "byte")
         {
             string register_c = code_gen.allocateReg(0);
             string reg_new = code_gen.allocateReg(0);
-            buffer.emit(register_c + " = add i32 " + reg + ", 0");
-            buffer.emit(reg_new + " = trunc i32 " + register_c + " to i8");
+            code_gen.emitZeroAddStatement(register_c, "add i32 ", reg);
+            code_gen.emitToStatement(reg_new, "trunc", 32, register_c, 8);
             reg = reg_new;
         }
     }
@@ -445,7 +445,7 @@ Exp::Exp(std::string type, const Node *node) : type(type), Node(node->val)
                 this->type = type;
                 this->val = node->val;
                 reg = code_gen.allocateReg(0);
-                buffer.emit(reg + " = add i8 " + val + ", 0");
+                code_gen.emitZeroAddStatement(reg, "add i8 ", val);
                 return;
             }
         }
@@ -460,7 +460,7 @@ Exp::Exp(std::string type, const Node *node) : type(type), Node(node->val)
         this->type = type;
         this->val = node->val;
         reg = code_gen.allocateReg(0);
-        buffer.emit(reg + " = add i32 " + val + ", 0");
+        code_gen.emitZeroAddStatement(reg, "add i32 ", val);
     }
     else if (type == "bool")
     {
@@ -565,20 +565,20 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
                 string fresh_reg2 = code_gen.allocateReg(0);
                 if (operand1->type == "int")
                 {
-                    buffer.emit(fresh_reg1 + " = add i32 " + operand1->reg + ", 0");
+                    code_gen.emitZeroAddStatement(fresh_reg1, "add i32 ", operand1->reg);
                 }
                 else if (operand1->type == "byte")
                 {
-                    buffer.emit(fresh_reg1 + " = zext i8 " + operand1->reg + " to i32");
+                    code_gen.emitToStatement(fresh_reg1, "zext", 8, operand1->reg, 32);
                 }
 
                 if (operand2->type == "int")
                 {
-                    buffer.emit(fresh_reg2 + " = add i32 " + operand2->reg + ", 0");
+                    code_gen.emitZeroAddStatement(fresh_reg2, "add i32 ", operand2->reg);
                 }
                 else if (operand2->type == "byte")
                 {
-                    buffer.emit(fresh_reg2 + " = zext i8 " + operand2->reg + " to i32");
+                    code_gen.emitToStatement(fresh_reg2, "zext", 8, operand2->reg, 32);
                 }
 
                 string op_text = code_gen.relopGetter(op);
@@ -609,19 +609,19 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
                     string fresh_reg2 = code_gen.allocateReg(0);
                     if (operand1->type == "int")
                     {
-                        buffer.emit(fresh_reg1 + " = add i32 " + operand1->reg + ", 0");
+                        code_gen.emitZeroAddStatement(fresh_reg1, "add i32 ", operand1->reg);
                     }
                     else if (operand1->type == "byte")
                     {
-                        buffer.emit(fresh_reg1 + " = zext i8 " + operand1->reg + " to i32");
+                        code_gen.emitToStatement(fresh_reg1, "zext", 8, operand1->reg, 32);
                     }
                     if (operand2->type == "int")
                     {
-                        buffer.emit(fresh_reg2 + " = add i32 " + operand2->reg + ", 0");
+                        code_gen.emitZeroAddStatement(fresh_reg2, "add i32 ", operand2->reg);
                     }
                     else if (operand2->type == "byte")
                     {
-                        buffer.emit(fresh_reg2 + " = zext i8 " + operand2->reg + " to i32");
+                        code_gen.emitToStatement(fresh_reg2, "zext", 8, operand2->reg, 32);
                     }
 
                     string text_op = code_gen.binopGetter(op);
@@ -642,7 +642,7 @@ Exp::Exp(const Exp *operand1, const Exp *operand2, std::string opType, std::stri
                     if (text_op == "div")
                     {
                         string old_reg = code_gen.allocateReg(0);
-                        buffer.emit(old_reg + " = zext i8 " + operand2->reg + "to i32");
+                        code_gen.emitToStatement(old_reg, "zext", 8, operand2->reg, 32);
                         buffer.emit("call void @check_division(i32 " + old_reg + ")");
                         buffer.emit(reg + " = udiv i8 " + operand1->reg + ", " + operand2->reg);
                     }
@@ -666,22 +666,22 @@ Exp::Exp(const Exp *operand, const Type *type) : Node(operand->val), type(type->
 
         if (type->type == "int" && operand->type == "int")
         {
-            buffer.emit(reg + " = add i32 " + operand->reg + ", 0");
+            code_gen.emitZeroAddStatement(reg, "add i32 ", operand->reg);
             this->type = "int";
         }
         else if (type->type == "byte" && operand->type == "int")
         {
-            buffer.emit(reg + " = trunc i32 " + operand->reg + " to i8");
+            code_gen.emitToStatement(reg, "trunc", 32, operand->reg, 8);
             this->type = "byte";
         }
         else if (type->type == "int" && operand->type == "byte")
         {
-            buffer.emit(reg + " = zext i8 " + operand->reg + " to i32");
+            code_gen.emitToStatement(reg, "zext", 8, operand->reg, 32);
             this->type = "int";
         }
         else if (type->type == "byte" && operand->type == "byte")
         {
-            buffer.emit(reg + " = add i8 " + operand->reg + ", 0");
+            code_gen.emitZeroAddStatement(reg, "add i8 ", operand->reg);
             this->type = "byte";
         }
     }

@@ -138,3 +138,13 @@ void codeGenerator::emitByteStatement(const std::string& expReg,  const std::str
     buffer.emit("store i32 " + regExtended + ", i32* " + regAddress); // Store in memory
 }
 
+void codeGenerator::emitToStatement(const std::string& expReg, const std::string& operation, int num1, const std::string& expReg2, int num2)
+{
+    buffer.emit(expReg + " = " + operation + " i" + std::to_string(num1) + " " + expReg2 + " to i" + std::to_string(num2));
+}
+
+void codeGenerator::emitZeroAddStatement(const std::string& expReg, const std::string& operation, const std::string& expReg2)
+{
+    buffer.emit(expReg + " = " + operation + expReg2 + ", 0");
+}
+

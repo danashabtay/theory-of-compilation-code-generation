@@ -25,7 +25,8 @@ public:
     void emitPhiNodeForExp(const std::string& reg, const std::string& trueLabel, const std::string& falseLabel, const std::string& nextLabel);
     void emitBoolStatement(const std::string& expReg,  const std::string& rbp,  int offset);
     void emitByteStatement(const std::string& expReg,  const std::string& rbp,  int offset);
-
+    void emitToStatement(const std::string& expReg, const std::string& operation, int num1, const std::string& expReg2, int num2);
+    void emitZeroAddStatement(const std::string& expReg, const std::string& operation, const std::string& expReg2);
 
 };
 
